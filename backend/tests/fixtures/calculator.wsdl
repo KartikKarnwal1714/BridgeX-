@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="Calculator"
+    targetNamespace="http://bridgex.test/calculator"
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+    xmlns:tns="http://bridgex.test/calculator"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <wsdl:types>
+    <xsd:schema>
+      <xsd:import namespace="http://bridgex.test/calculator" schemaLocation="calculator-types.xsd"/>
+    </xsd:schema>
+  </wsdl:types>
+  <wsdl:message name="AddIn"><wsdl:part name="parameters" element="tns:Add"/></wsdl:message>
+  <wsdl:message name="AddOut"><wsdl:part name="parameters" element="tns:AddResponse"/></wsdl:message>
+  <wsdl:message name="DivideIn"><wsdl:part name="parameters" element="tns:Divide"/></wsdl:message>
+  <wsdl:message name="DivideOut"><wsdl:part name="parameters" element="tns:DivideResponse"/></wsdl:message>
+  <wsdl:message name="AuthHeaderMsg"><wsdl:part name="header" element="tns:AuthHeader"/></wsdl:message>
+  <wsdl:portType name="CalculatorPortType">
+    <wsdl:operation name="Add"><wsdl:input message="tns:AddIn"/><wsdl:output message="tns:AddOut"/></wsdl:operation>
+    <wsdl:operation name="Divide"><wsdl:input message="tns:DivideIn"/><wsdl:output message="tns:DivideOut"/></wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="CalculatorSoap" type="tns:CalculatorPortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="Add">
+      <soap:operation soapAction="http://bridgex.test/calculator/Add"/>
+      <wsdl:input><soap:body use="literal"/><soap:header message="tns:AuthHeaderMsg" part="header" use="literal"/></wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Divide">
+      <soap:operation soapAction="http://bridgex.test/calculator/Divide"/>
+      <wsdl:input><soap:body use="literal"/></wsdl:input>
+      <wsdl:output><soap:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="CalculatorSoap12" type="tns:CalculatorPortType">
+    <soap12:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="Add">
+      <soap12:operation soapAction="http://bridgex.test/calculator/Add"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Divide">
+      <soap12:operation soapAction="http://bridgex.test/calculator/Divide"/>
+      <wsdl:input><soap12:body use="literal"/></wsdl:input>
+      <wsdl:output><soap12:body use="literal"/></wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="Calculator">
+    <wsdl:port name="CalculatorSoap" binding="tns:CalculatorSoap"><soap:address location="{{ENDPOINT}}/soap11"/></wsdl:port>
+    <wsdl:port name="CalculatorSoap12" binding="tns:CalculatorSoap12"><soap12:address location="{{ENDPOINT}}/soap12"/></wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

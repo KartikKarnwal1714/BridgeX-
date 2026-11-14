@@ -1,0 +1,129 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bridgex}
+      # Local-only defaults. Override all credentials for non-local deployments.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bridgex-local-dev-only}
+      POSTGRES_DB: ${POSTGRES_DB:-bridgex}
+    volumes:
+      - bridgex_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - bridgex
+
+  mongo:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-bridgex}
+      # Local-only defaults. Override all credentials for non-local deployments.
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-bridgex-local-dev-only}
+    volumes:
+      - bridgex_mongo_data:/data/db
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet --username \"$${MONGO_INITDB_ROOT_USERNAME}\" --password \"$${MONGO_INITDB_ROOT_PASSWORD}\" --authenticationDatabase admin --eval 'db.adminCommand({ ping: 1 }).ok'",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    networks:
+      - bridgex
+
+  redis:
+    image: redis:7-alpine
+    environment:
+      # Local-only default. Override for non-local deployments.
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-bridgex-local-dev-only}
+    command:
+      [
+        "sh",
+        "-c",
+        "exec redis-server --appendonly yes --requirepass \"$${REDIS_PASSWORD}\"",
+      ]
+    volumes:
+      - bridgex_redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - bridgex
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: "5000"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-bridgex}:${POSTGRES_PASSWORD:-bridgex-local-dev-only}@postgres:5432/${POSTGRES_DB:-bridgex}"
+      MONGO_URI: "mongodb://${MONGO_INITDB_ROOT_USERNAME:-bridgex}:${MONGO_INITDB_ROOT_PASSWORD:-bridgex-local-dev-only}@mongo:27017/bridgex_logs?authSource=admin"
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-bridgex-local-dev-only}@redis:6379"
+      # In production the application rejects the development JWT fallback.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      # Required by the application in production; leave blank locally to use its dev-only derivation.
+      GATEWAY_ENCRYPTION_KEY: ${GATEWAY_ENCRYPTION_KEY:-}
+      CLIENT_URL: http://localhost:8080
+      BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS:-10}
+      LOG_RETENTION_DAYS: ${LOG_RETENTION_DAYS:-30}
+    ports:
+      - "5001:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5000/api/v1/health/ready').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    networks:
+      - bridgex
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:5001/api/v1
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - bridgex
+
+volumes:
+  bridgex_postgres_data:
+  bridgex_mongo_data:
+  bridgex_redis_data:
+
+networks:
+  bridgex:
+    driver: bridge

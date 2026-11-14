@@ -1,0 +1,30 @@
+# Environment files; keep checked-in templates.
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output.
+node_modules/
+dist/
+coverage/
+.vite/
+
+# Logs and generated runtime files.
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.pid
+*.seed
+*.tsbuildinfo
+
+# Temporary/editor/OS files.
+.cache/
+.tmp/
+tmp/
+.DS_Store
+Thumbs.db
+
+# Local backup files
+/backend/src/config/mongo.js.bak
